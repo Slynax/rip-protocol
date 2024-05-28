@@ -23,3 +23,4 @@ pub fn run_client(address: &str, message: &str) -> io::Result<String> {
     let clean_response = response.trim_end_matches("#END#").to_string();
     Ok(clean_response)
 }
+
