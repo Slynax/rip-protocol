@@ -1,0 +1,8 @@
+- interface:
+     device: eth0
+     ip: 192.168.1.254
+     mask: 24
+- interface:
+     device: eth1
+     ip: 10.1.1.1
+     mask: 30
