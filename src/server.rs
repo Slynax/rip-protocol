@@ -3,6 +3,24 @@ use std::net::{TcpListener, TcpStream};
 use std::fs;
 use serde_yaml;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Mutex;
+use lazy_static::lazy_static;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RipEntry {
+    pub address_family: u16,
+    pub route_tag: u16,
+    pub ip_address: String,
+    pub subnet_mask: String,
+    pub next_hop: String,
+    pub metric: u32,
+}
+
+lazy_static! {
+    pub static ref ROUTING_TABLE: Mutex<HashMap<String, RipEntry>> = Mutex::new(HashMap::new());
+}
+
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Interface {
@@ -16,15 +34,6 @@ struct Data {
     interface: Interface,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RipEntry {
-    pub address_family: u16,
-    pub route_tag: u16,
-    pub ip_address: String,
-    pub subnet_mask: String,
-    pub next_hop: String,
-    pub metric: u32,
-}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RipMessage {
@@ -54,46 +63,55 @@ fn convert_to_rip(data: Vec<Data>) -> RipMessage {
     }
 }
 
-fn load_yaml_from_file() -> io::Result<Vec<Data>> {
-    let yaml_content = fs::read_to_string("config/routeur-r1.yaml")?;
+fn load_yaml_from_file(router: &str) -> io::Result<Vec<Data>> {
+    println!("Loading YAML file for router: {}", router);
+    let file_path = format!("config/routeur-{}.yaml", router);
+    let yaml_content = fs::read_to_string(file_path)?;
+
     let data: Vec<Data> = serde_yaml::from_str(&yaml_content)
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
     Ok(data)
+}
+
+fn update_routing_table_from_rip(rip_message: &RipMessage) {
+    let mut routing_table = ROUTING_TABLE.lock().unwrap();
+    for entry in &rip_message.entries {
+        let key = format!("{}/{}", entry.ip_address, entry.subnet_mask);
+        if !routing_table.contains_key(&key) || routing_table[&key].metric > entry.metric {
+            routing_table.insert(key, entry.clone());
+        }
+    }
 }
 
 fn handle_client(mut stream: TcpStream) -> Result<()> {
     let mut buffer = [0; 1024];
+    let mut total_data = String::new();
     while let Ok(nbytes) = stream.read(&mut buffer) {
         if nbytes == 0 {
-            break; // Connection closed
+            break;
         }
-        let received_message = String::from_utf8_lossy(&buffer[..nbytes]).trim().to_string();
-        if received_message == "Hello, server!" {
-            match load_yaml_from_file() {
-                Ok(data) => {
-                    let rip_message = convert_to_rip(data);
-                    let mut response = serde_yaml::to_string(&rip_message)
-                        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-                    
-                    response.push_str("#END#");
-
-                    println!("Sending response: {}", response);
-                    stream.write_all(response.as_bytes())?;
-                },
-                Err(err) => {
-                    eprintln!("Error loading or parsing YAML: {}", err);
-                    let error_message = "Error loading YAML#END#";
-                    stream.write_all(error_message.as_bytes())?;
-                }
+        total_data.push_str(&String::from_utf8_lossy(&buffer[..nbytes]));
+        if total_data.ends_with("#END#") {
+            let clean_data = total_data.trim_end_matches("#END#");
+            println!("Received data: {}", clean_data);
+            if let Ok(rip_message) = serde_yaml::from_str::<RipMessage>(clean_data) {
+                
+                update_routing_table_from_rip(&rip_message);
             }
+            total_data.clear();
         }
-        stream.flush()?;
     }
     Ok(())
 }
 
 
-pub fn run_server(address: &str) -> Result<()> {
+pub fn run_server(address: &str,router: &str) -> Result<()> {
+    // Chargement initial des données de routage
+    if let Ok(data) = load_yaml_from_file(router) {
+        let rip_message = convert_to_rip(data);
+        update_routing_table_from_rip(&rip_message);
+    }
+
     let listener = TcpListener::bind(address)?;
     println!("Server listening on {}", address);
     for stream in listener.incoming() {
@@ -107,3 +125,4 @@ pub fn run_server(address: &str) -> Result<()> {
     }
     Ok(())
 }
+
