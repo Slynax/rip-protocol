@@ -1,6 +1,5 @@
 use std::net::UdpSocket;
 use std::time::Duration;
-use serde::{Serialize, Deserialize};
 use crate::routing::{RipMessage, RoutingTable};
 
 #[derive(Debug)]

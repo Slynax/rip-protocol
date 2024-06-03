@@ -6,6 +6,8 @@ pub struct Route {
     pub destination: String,
     pub metric: u8,
     pub next_hop: String,
+    pub mask: u8,
+    pub out_interface_ip: String,
 }
 
 #[derive(Debug)]
@@ -20,13 +22,13 @@ impl RoutingTable {
         }
     }
 
-    pub fn update(&mut self, destination: String, next_hop: String, metric: u8) {
+    pub fn update(&mut self, destination: String, next_hop: String, metric: u8, mask: u8, out_interface_ip: String) {
         if let Some(route) = self.routes.get(&destination) {
             if route.metric > metric {
-                self.routes.insert(destination.clone(), Route { destination, next_hop, metric });
+                self.routes.insert(destination.clone(), Route { destination, next_hop, metric, mask, out_interface_ip });
             }
         } else {
-            self.routes.insert(destination.clone(), Route { destination, next_hop, metric });
+            self.routes.insert(destination.clone(), Route { destination, next_hop, metric, mask, out_interface_ip });
         }
     }
 

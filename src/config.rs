@@ -1,16 +1,17 @@
-use serde_derive::Deserialize;
+//use serde::{Deserialize, Serialize};
+use serde_derive::{Deserialize, Serialize};
 use std::fs;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Interface {
-    pub device: String,
-    pub ip: String,
-    pub mask: u8,
+    device: String,
+    ip: String,
+    mask: u8,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RouterConfig {
-    pub interface: Vec<Interface>,
+    interface: Vec<Interface>,
 }
 
 impl RouterConfig {

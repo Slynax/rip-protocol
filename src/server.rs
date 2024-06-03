@@ -24,7 +24,7 @@ impl RipServer {
             let received_data = &buf[..amt];
             if let Ok(message) = bincode::deserialize::<RipMessage>(received_data) {
                 for route in message.routes {
-                    self.routing_table.update(route.destination, message.sender.clone(), route.metric + 1);
+                    self.routing_table.update(route.destination, message.sender.clone(), route.metric + 1, route.mask, route.out_interface_ip.clone());
                 }
             }
         }
