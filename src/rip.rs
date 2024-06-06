@@ -23,7 +23,6 @@ pub struct Route {
     pub exit_interface: Ipv4Addr,
 }
 
-// Fonction pour déterminer l'interface de sortie en fonction de l'adresse IP de destination
 fn get_exit_interface(config: &[InterfaceWrapper], dest_ip: Ipv4Addr) -> Option<Ipv4Addr> {
     for interface in config {
         let ip = interface.interface.ip.parse::<Ipv4Addr>().expect("Failed to parse IP address");
@@ -36,7 +35,6 @@ fn get_exit_interface(config: &[InterfaceWrapper], dest_ip: Ipv4Addr) -> Option<
     None
 }
 
-// Fonction pour initialiser les routes à partir des fichiers YAML
 fn initialize_routes(config: &[InterfaceWrapper]) -> Vec<Route> {
     let mut routes = Vec::new();
     for interface in config {
@@ -68,13 +66,10 @@ impl Router {
         let send_socket = UdpSocket::bind((ip, 0)).expect("Failed to bind send socket");
         let recv_socket = UdpSocket::bind((ip, RIP_PORT)).expect("Failed to bind recv socket");
 
-        // Store the send_socket in the Router for later use
         self.send_socket = Some(send_socket);
 
-        // Clone the Arc for the receiver thread
         let routing_table = Arc::clone(&self.routing_table);
 
-        // Start the receiver thread
         thread::spawn(move || {
             let mut buf = [0; 1024];
             loop {
@@ -107,9 +102,9 @@ fn update_routing_table(routing_table: &mut Vec<Route>, data: &[u8], config: &[I
     let (exit_interface_ip, received_routes): (Ipv4Addr, Vec<Route>) = bincode::deserialize(data).expect("Failed to deserialize data");
 
     for mut route in received_routes {
-        route.next_hop = Some(exit_interface_ip); // Mise à jour du next_hop
+        route.next_hop = Some(exit_interface_ip);
         if let Some(exit_interface) = get_exit_interface(config, exit_interface_ip) {
-            route.exit_interface = exit_interface; // Mise à jour de l'interface de sortie
+            route.exit_interface = exit_interface;
         }
         add_or_update_route(routing_table, route);
     }

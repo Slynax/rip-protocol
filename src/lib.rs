@@ -1,4 +1,3 @@
-// src/lib.rs
 pub mod router;
 pub mod rip;
 
